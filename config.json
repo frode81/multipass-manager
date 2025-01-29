@@ -2,13 +2,13 @@
     "users": [
         {
             "username": "admin",
-            "password": "Esti228b@",
+            "password": "admin123",
             "role": "admin",
-            "firstLogin": false
+            "firstLogin": true
         }
     ],
     "session": {
-        "secret": "ditt-hemmelige-session-token",
+        "secret": "93f06cf09ebd8375d479cdf52905b9b629e6a6c872bff60b50d027f383b43ca7f59c3be715c910c552f92aa1e9dbab8b7f76402bac9a1a7412cef02e7e357904",
         "expiresIn": "24h"
     }
 }

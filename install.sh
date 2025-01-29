@@ -91,6 +91,33 @@ read -p "Velg brukernavn for admin: " ADMIN_USER
 read -s -p "Velg passord for admin: " ADMIN_PASS
 echo
 
+# Generer en sikker session secret
+SESSION_SECRET=$(openssl rand -hex 32)
+
+# Opprett config.json med bcrypt-hashet passord
+node -e "
+const bcrypt = require('bcrypt');
+const fs = require('fs');
+
+async function createConfig() {
+    const hashedPassword = await bcrypt.hash('${ADMIN_PASS}', 12);
+    const config = {
+        users: [{
+            username: '${ADMIN_USER}',
+            password: hashedPassword,
+            role: 'admin',
+            firstLogin: true
+        }],
+        session: {
+            secret: '${SESSION_SECRET}',
+            expiresIn: '24h'
+        }
+    };
+    fs.writeFileSync('config.json', JSON.stringify(config, null, 4));
+}
+createConfig();
+"
+
 print_status "Oppdaterer systemet..."
 apt update
 apt upgrade -y
@@ -184,23 +211,6 @@ if [ "$USE_SSL" = true ]; then
     ufw allow 443/tcp
 fi
 ufw --force enable
-
-print_status "Oppretter config.json..."
-cat > /opt/multipass-manager/config.json << EOL
-{
-    "session": {
-        "secret": "$(openssl rand -base64 32)"
-    },
-    "users": [
-        {
-            "username": "${ADMIN_USER}",
-            "password": "${ADMIN_PASS}",
-            "role": "admin",
-            "firstLogin": false
-        }
-    ]
-}
-EOL
 
 print_status "Starter tjenesten..."
 systemctl daemon-reload

@@ -9,6 +9,8 @@ const session = require('express-session');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const fs = require('fs');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,6 +18,12 @@ const wss = new WebSocket.Server({ server });
 
 const port = 3000;
 const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+
+// Generer en tilfeldig session secret hvis den ikke finnes
+if (!config.session.secret || config.session.secret === 'ditt-hemmelige-session-token') {
+    config.session.secret = crypto.randomBytes(64).toString('hex');
+    fs.writeFileSync('config.json', JSON.stringify(config, null, 4));
+}
 
 // Grunnleggende middleware
 app.use(express.json());
@@ -62,6 +70,15 @@ function authenticateToken(req, res, next) {
     try {
         const user = jwt.verify(token, config.session.secret);
         req.user = user;
+
+        // Sjekk om brukeren må endre passord
+        const userConfig = config.users.find(u => u.username === user.username);
+        if (userConfig && userConfig.firstLogin && 
+            !req.path.includes('/change-password') && 
+            !req.path.includes('/api/change-password')) {
+            return res.redirect('/change-password.html');
+        }
+
         next();
     } catch (err) {
         res.clearCookie('token');
@@ -71,11 +88,12 @@ function authenticateToken(req, res, next) {
 
 // Serve statiske filer som ikke krever autentisering
 app.use('/login.html', express.static(path.join(__dirname, 'public/login.html')));
+app.use('/change-password.html', express.static(path.join(__dirname, 'public/change-password.html')));
 app.use('/favicon.ico', express.static(path.join(__dirname, 'public/favicon.ico')));
 
 // Login endepunkt (krever ikke autentisering)
-app.post('/api/login', (req, res) => {
-    console.log('Login forsøk:', req.body);
+app.post('/api/login', async (req, res) => {
+    console.log('Login forsøk:', { username: req.body.username });
     
     const { username, password } = req.body;
     
@@ -87,19 +105,35 @@ app.post('/api/login', (req, res) => {
     const user = config.users.find(u => u.username === username);
     console.log('Bruker funnet:', !!user);
 
-    if (!user || user.password !== password) {
+    if (!user) {
+        return res.status(401).json({ error: 'Ugyldig brukernavn eller passord' });
+    }
+
+    // Hvis passordet fortsatt er i klartekst, hash det
+    if (!user.password.startsWith('$2b$')) {
+        user.password = await bcrypt.hash(user.password, 12);
+        fs.writeFileSync('config.json', JSON.stringify(config, null, 4));
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
         return res.status(401).json({ error: 'Ugyldig brukernavn eller passord' });
     }
 
     const token = jwt.sign(
-        { username: user.username, role: user.role },
+        { 
+            username: user.username, 
+            role: user.role,
+            firstLogin: user.firstLogin 
+        },
         config.session.secret,
         { expiresIn: '24h' }
     );
 
     res.cookie('token', token, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
         maxAge: 24 * 60 * 60 * 1000
     });
 
@@ -108,6 +142,27 @@ app.post('/api/login', (req, res) => {
         success: true,
         firstLogin: user.firstLogin 
     });
+});
+
+// Endepunkt for å endre passord
+app.post('/api/change-password', authenticateToken, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const user = config.users.find(u => u.username === req.user.username);
+
+    if (!user) {
+        return res.status(404).json({ error: 'Bruker ikke funnet' });
+    }
+
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
+        return res.status(401).json({ error: 'Feil nåværende passord' });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+    user.firstLogin = false;
+    fs.writeFileSync('config.json', JSON.stringify(config, null, 4));
+
+    res.json({ success: true });
 });
 
 // Logout endepunkt
