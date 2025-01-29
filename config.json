@@ -1,0 +1,14 @@
+{
+    "users": [
+        {
+            "username": "admin",
+            "password": "Esti228b@",
+            "role": "admin",
+            "firstLogin": false
+        }
+    ],
+    "session": {
+        "secret": "ditt-hemmelige-session-token",
+        "expiresIn": "24h"
+    }
+}

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logg inn - Multipass Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --danger-color: #dc2626;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background-color: var(--card-background);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+            margin: 1rem;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.15s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1 class="login-title">
+                <i class="fas fa-cube"></i>
+                Multipass Manager
+            </h1>
+        </div>
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="username">
+                    <i class="fas fa-user"></i>
+                    Brukernavn
+                </label>
+                <input type="text" 
+                       id="username" 
+                       name="username"
+                       class="form-control" 
+                       required 
+                       autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="password">
+                    <i class="fas fa-lock"></i>
+                    Passord
+                </label>
+                <input type="password" 
+                       id="password" 
+                       name="password"
+                       class="form-control" 
+                       required 
+                       autocomplete="current-password">
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+            <button type="submit" class="btn">
+                <i class="fas fa-sign-in-alt"></i>
+                Logg inn
+            </button>
+        </form>
+    </div>
+
+    <script>
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Deaktiver knappen og skjul feilmelding
+            submitButton.disabled = true;
+            errorMessage.style.display = 'none';
+            
+            try {
+                console.log('Sender innloggingsforespørsel...');
+                const formData = {
+                    username: form.username.value,
+                    password: form.password.value
+                };
+                console.log('Data som sendes:', { username: formData.username });
+                
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                console.log('Server respons status:', response.status);
+                
+                const data = await response.json();
+                console.log('Server respons data:', data);
+                
+                if (response.ok && data.success) {
+                    console.log('Innlogging vellykket');
+                    if (data.firstLogin) {
+                        console.log('Førstegangs pålogging, omdirigerer til passordendring...');
+                        window.location.href = '/change-password.html';
+                    } else {
+                        console.log('Normal pålogging, omdirigerer til hovedsiden...');
+                        window.location.href = '/';
+                    }
+                } else {
+                    console.log('Innlogging feilet:', data.error);
+                    errorMessage.textContent = data.error || 'Feil ved innlogging';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Innloggingsfeil:', error);
+                errorMessage.textContent = 'Kunne ikke koble til serveren. Prøv igjen senere.';
+                errorMessage.style.display = 'block';
+            } finally {
+                submitButton.disabled = false;
+            }
+        }
+
+        // Debug info ved lasting av siden
+        console.log('Login-side lastet');
+        if (document.cookie) {
+            console.log('Cookies finnes:', document.cookie);
+        } else {
+            console.log('Ingen cookies funnet');
+        }
+    </script>
+</body>
+</html> 

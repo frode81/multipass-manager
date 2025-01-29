@@ -1,0 +1,17 @@
+{
+  "name": "multipass-web-manager",
+  "version": "1.0.0",
+  "description": "Et enkelt web-grensesnitt for håndtering av Multipass containere",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "jsonwebtoken": "^9.0.2",
+    "cookie-parser": "^1.4.6",
+    "node-pty": "^1.0.0",
+    "ws": "^8.14.2"
+  }
+}
