@@ -2,9 +2,9 @@
     "users": [
         {
             "username": "admin",
-            "password": "$2b$12$44febCIpnfLUE9ljQP3j2epiorU.8QGSsZDj5pQcInoOQsfFDi9J.",
+            "password": "admin123",
             "role": "admin",
-            "firstLogin": false
+            "firstLogin": true
         }
     ],
     "session": {
