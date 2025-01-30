@@ -384,7 +384,7 @@ function validateMultipassCommand(req, res, next) {
     // Liste over tillatte kommandoer
     const allowedCommands = [
         'launch', 'list', 'info', 'start', 'stop', 'delete', 'purge', 
-        'shell', 'transfer', 'exec', 'mount'  // Lagt til mount for cloud-init
+        'shell', 'transfer', 'exec', 'mount', 'snapshot', 'restore'  // Lagt til snapshot og restore
     ];
     const commandPart = command.split(' ')[1];
     

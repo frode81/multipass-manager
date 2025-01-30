@@ -332,7 +332,7 @@
             left: 0;
             top: 0;
             bottom: 0;
-            background-color: currentColor;
+            background-color: #ffffff;
             opacity: 0.1;
             transition: width 0.3s ease;
         }
@@ -722,6 +722,162 @@
             color: var(--danger-color);
             background-color: rgba(220, 38, 38, 0.1);
         }
+
+        /* Snapshot styles */
+        .snapshot-list {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .snapshot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .snapshot-item:last-child {
+            border-bottom: none;
+        }
+
+        .snapshot-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .snapshot-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .snapshot-date {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .snapshot-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .snapshot-actions button {
+            padding: 0.25rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.2s ease;
+        }
+
+        .snapshot-actions button:hover {
+            color: var(--primary-color);
+            background-color: rgba(37, 99, 235, 0.1);
+        }
+
+        .snapshot-actions button.delete-btn:hover {
+            color: var(--danger-color);
+            background-color: rgba(220, 38, 38, 0.1);
+        }
+
+        /* New styles for icons */
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            background-color: var(--background-color);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .btn-icon:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-icon.btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-icon.btn-warning {
+            background-color: var(--warning-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-icon.btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+        }
+
+        .instance-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            padding-top: 0.5rem;
+        }
+
+        /* Tooltip styles */
+        [title] {
+            position: relative;
+        }
+
+        [title]:hover::after {
+            content: attr(title);
+            position: fixed;
+            transform: translateX(-50%);
+            padding: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 0.25rem;
+            white-space: nowrap;
+            z-index: 99999;
+            margin-bottom: 0.5rem;
+            pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            left: 50%;
+            bottom: auto;
+            top: calc(100% + 5px);
+        }
+
+        [title]:hover::before {
+            content: '';
+            position: fixed;
+            z-index: 99999;
+            pointer-events: none;
+            border: 0.25rem solid transparent;
+            border-bottom-color: rgba(0, 0, 0, 0.9);
+            margin-bottom: -0.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: auto;
+            top: calc(100% - 3px);
+        }
+
+        .btn-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -736,6 +892,10 @@
                     <i class="fas fa-key"></i>
                     SSH Nøkler
                 </button>
+                <button class="btn btn-secondary" onclick="window.location.href='/change-password.html'">
+                    <i class="fas fa-lock"></i>
+                    Bytt Passord
+                </button>
                 <button class="btn btn-secondary" onclick="handleLogout()">
                     <i class="fas fa-sign-out-alt"></i>
                     Logg ut
@@ -749,11 +909,11 @@
             <div class="card-header">
                 <h2 class="card-title">
                     <i class="fas fa-server"></i>
-                    Instances
+                    Instanser
                 </h2>
                 <button class="btn btn-primary" onclick="showCreateDialog()">
                     <i class="fas fa-plus"></i>
-                    Opprett Ny Instance
+                    Opprett Ny Instans
                 </button>
             </div>
             <div id="instanceList" class="instance-grid">
@@ -764,7 +924,7 @@
 
     <div class="loading-overlay">
         <div class="spinner"></div>
-        <span class="message">Oppretter instance...</span>
+        <span class="message">Oppretter instans...</span>
     </div>
 
     <div id="toast" class="toast">
@@ -792,7 +952,7 @@
             <div class="dialog-header">
                 <h2 class="dialog-title">
                     <i class="fas fa-plus-circle"></i>
-                    Opprett Ny Instance
+                    Opprett Ny Instans
                 </h2>
                 <button class="dialog-close" onclick="closeCreateDialog()">
                     <i class="fas fa-times"></i>
@@ -803,7 +963,7 @@
                     <div class="form-group">
                         <label for="instanceName">
                             <i class="fas fa-tag"></i>
-                            Navn på instance
+                            Navn på instansen
                         </label>
                         <input type="text" 
                                id="instanceName" 
@@ -963,7 +1123,7 @@
                 <div class="form-group">
                     <label>
                         <i class="fas fa-server"></i>
-                        Velg instances for å legge til nøkkelen
+                        Velg instanser for å legge til nøkkelen
                     </label>
                     <div id="instanceCheckboxes" class="checkbox-group">
                         <!-- Instances vil bli lagt til her dynamisk -->
@@ -977,6 +1137,44 @@
                     <button type="button" class="btn btn-primary" onclick="addSSHKey()">
                         <i class="fas fa-plus"></i>
                         Legg til Nøkkel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dialog for snapshot-administrasjon -->
+    <div id="snapshotDialog" class="dialog-overlay">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2 class="dialog-title">
+                    <i class="fas fa-camera"></i>
+                    Administrer Snapshots
+                </h2>
+                <button class="dialog-close" onclick="closeSnapshotDialog()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="dialog-body">
+                <!-- Liste over eksisterende snapshots -->
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-history"></i>
+                        Eksisterende Snapshots
+                    </label>
+                    <div id="snapshotList" class="snapshot-list">
+                        <!-- Snapshots vil bli lagt til her dynamisk -->
+                    </div>
+                </div>
+
+                <div class="dialog-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeSnapshotDialog()">
+                        <i class="fas fa-times"></i>
+                        Lukk
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="createSnapshot()">
+                        <i class="fas fa-camera"></i>
+                        Ta Snapshot
                     </button>
                 </div>
             </div>
@@ -1038,7 +1236,6 @@
 
         async function runCommand(command) {
             try {
-                console.log('Sender kommando:', command);
                 const response = await fetch('/run-command', {
                     method: 'POST',
                     headers: {
@@ -1048,7 +1245,6 @@
                 });
                 
                 const result = await response.json();
-                console.log('Server respons:', result);
                 
                 if (!response.ok) {
                     throw new Error(result.error || result.details || 'Ukjent serverfeil');
@@ -1159,9 +1355,7 @@
             closeCreateDialog();
             showLoading('Sender kommando...');
             
-            try {
-                console.log('Kjører kommando:', command);
-                
+            try {             
                 const sendCommandPromise = fetch('/run-command', {
                     method: 'POST',
                     headers: {
@@ -1177,7 +1371,6 @@
                 
                 const response = await sendCommandPromise;
                 const result = await response.json();
-                console.log('Resultat:', result);
                 
                 if (result.status === 'success') {
                     form.reset();
@@ -1410,12 +1603,10 @@
         async function fetchInstances() {
             try {
                 const result = await runCommand('multipass list');
-                console.log('Raw multipass list output:', result); // Debug output
                 const lines = result.split('\n');
                 
                 // Fjern header-linjen
                 const headerLine = lines.shift();
-                console.log('Header:', headerLine); // Debug output
                 
                 // Grupper linjer som tilhører samme instans
                 const instanceGroups = [];
@@ -1423,7 +1614,6 @@
                 
                 for (const line of lines) {
                     if (!line.trim()) continue;
-                    console.log('Processing line:', line); // Debug output
                     
                     // Hvis linjen starter med mellomrom eller er en fortsettelse
                     if (line.match(/^\s+/)) {
@@ -1442,14 +1632,11 @@
                     instanceGroups.push(currentGroup);
                 }
                 
-                console.log('Instance groups:', instanceGroups); // Debug output
                 
                 // Parse hver gruppe til en instans
                 const instances = instanceGroups.map(group => {
-                    console.log('Processing group:', group); // Debug output
                     const mainLine = group[0];
                     const parts = mainLine.trim().split(/\s+/);
-                    console.log('Main line parts:', parts); // Debug output
                     
                     const name = parts[0];
                     const state = parts[1];
@@ -1460,7 +1647,6 @@
                     const allIPs = [ipv4];
                     for (let i = 1; i < group.length; i++) {
                         const additionalLine = group[i].trim();
-                        console.log('Additional line:', additionalLine); // Debug output
                         
                         // Hvis linjen bare inneholder en IP-adresse
                         if (additionalLine.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
@@ -1479,7 +1665,6 @@
                     
                     // Filtrer ut '--' og tomme verdier, og join med komma
                     const finalIPs = allIPs.filter(ip => ip && ip !== '--').join(', ');
-                    console.log('Final IPs for', name, ':', finalIPs); // Debug output
                     
                     return { 
                         name, 
@@ -1494,7 +1679,6 @@
                     if (instance.state.toLowerCase() === 'running') {
                         try {
                             const info = await runCommand(`multipass info ${instance.name}`);
-                            console.log('Raw info output:', info); // Debug output
                             
                             // Hent ut all tilgjengelig informasjon
                             const loadMatch = info.match(/Load:\s+([0-9., ]+)/);
@@ -1503,7 +1687,6 @@
                             const cpuMatch = info.match(/CPU\(s\):\s+(\d+)/);
                             const releaseMatch = info.match(/Release:\s+([^\n]+)/);
                             
-                            console.log('Memory match:', memoryMatch); // Debug output
                             
                             instance.load = loadMatch ? loadMatch[1].trim() : 'N/A';
                             instance.diskUsage = diskMatch ? {
@@ -1517,7 +1700,6 @@
                             instance.cpuCount = cpuMatch ? cpuMatch[1] : 'N/A';
                             instance.release = releaseMatch ? releaseMatch[1] : 'N/A';
                             
-                            console.log('Parsed memory usage:', instance.memoryUsage); // Debug output
                         } catch (error) {
                             console.error(`Kunne ikke hente info for ${instance.name}:`, error);
                             instance.load = 'N/A';
@@ -1613,7 +1795,6 @@
             const multipliers = unit.includes('I') ? binaryMultipliers : siMultipliers;
             const bytes = value * (multipliers[unit] || 1);
             
-            console.log(`Parsing ${sizeStr}: ${value} ${unit} = ${bytes} bytes`); // Debug output
             return bytes;
         }
 
@@ -1718,24 +1899,23 @@
                     </div>
                 </div>
                 <div class="instance-actions">
-                    <button class="btn btn-sm btn-terminal" onclick="openTerminal('${instance.name}')">
+                    <button class="btn btn-icon" onclick="openTerminal('${instance.name}')" title="Åpne Terminal">
                         <i class="fas fa-terminal"></i>
-                        Terminal
                     </button>
                     ${instance.state.toLowerCase() === 'running' ? `
-                        <button class="btn btn-sm btn-warning" onclick="stopInstance('${instance.name}')">
+                        <button class="btn btn-icon btn-warning" onclick="stopInstance('${instance.name}')" title="Stopp Instance">
                             <i class="fas fa-stop"></i>
-                            Stopp
+                        </button>
+                        <button class="btn btn-icon btn-primary" onclick="showSnapshotDialog('${instance.name}')" title="Ta Snapshot">
+                            <i class="fas fa-camera"></i>
                         </button>
                     ` : `
-                        <button class="btn btn-sm btn-primary" onclick="startInstance('${instance.name}')">
+                        <button class="btn btn-icon btn-primary" onclick="startInstance('${instance.name}')" title="Start Instance">
                             <i class="fas fa-play"></i>
-                            Start
                         </button>
                     `}
-                    <button class="btn btn-sm btn-danger" onclick="deleteInstance('${instance.name}')">
+                    <button class="btn btn-icon btn-danger" onclick="deleteInstance('${instance.name}')" title="Slett Instance">
                         <i class="fas fa-trash"></i>
-                        Slett
                     </button>
                 </div>
             `;
@@ -1982,6 +2162,203 @@
             } catch (error) {
                 console.error('Feil ved tillegging av SSH-nøkkel:', error);
                 showToast('Feil ved tillegging av SSH-nøkkel: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        
+
+        function showSnapshotDialog(instanceName) {
+            const dialog = document.getElementById('snapshotDialog');
+            dialog.style.display = 'flex';
+            dialog.querySelector('.dialog').classList.add('show');
+            
+            // Sett instance-navn i et skjult felt
+            const instanceInput = document.createElement('input');
+            instanceInput.type = 'hidden';
+            instanceInput.id = 'selectedInstance';
+            instanceInput.value = instanceName;
+            dialog.querySelector('.dialog-body').prepend(instanceInput);
+            
+            // Oppdater dialog-tittelen
+            dialog.querySelector('.dialog-title').innerHTML = `
+                <i class="fas fa-camera"></i>
+                Ta Snapshot av ${instanceName}
+            `;
+            
+            updateSnapshotList();
+        }
+
+        function closeSnapshotDialog() {
+            const dialog = document.getElementById('snapshotDialog');
+            dialog.style.display = 'none';
+            dialog.querySelector('.dialog').classList.remove('show');
+            const selectedInstance = document.getElementById('selectedInstance');
+            if (selectedInstance) {
+                selectedInstance.remove();
+            }
+        }
+
+        function updateSnapshotInstanceSelect() {
+            const container = document.getElementById('snapshotInstanceSelect');
+            container.innerHTML = '';
+
+            // Hent alle instances fra instanceList
+            const instanceCards = document.querySelectorAll('.instance-card');
+            instanceCards.forEach(card => {
+                const name = card.querySelector('.instance-name').textContent.trim();
+                const state = card.querySelector('.status-badge').textContent.trim();
+                const isRunning = state.toLowerCase().includes('running');
+
+                const checkboxItem = document.createElement('div');
+                checkboxItem.className = 'checkbox-item';
+                checkboxItem.innerHTML = `
+                    <input type="radio" 
+                           id="instance-${name}" 
+                           name="snapshotInstance"
+                           value="${name}"
+                           ${!isRunning ? 'disabled' : ''}>
+                    <label for="instance-${name}">
+                        <i class="fas fa-cube"></i>
+                        ${name}
+                        ${!isRunning ? ' (Ikke tilgjengelig - må være kjørende)' : ''}
+                    </label>
+                `;
+                container.appendChild(checkboxItem);
+            });
+        }
+
+        async function updateSnapshotList() {
+            const container = document.getElementById('snapshotList');
+            const selectedInstance = document.getElementById('selectedInstance').value;
+            container.innerHTML = '<div class="text-secondary" style="padding: 0.5rem;">Laster snapshots...</div>';
+
+            try {
+                const result = await runCommand('multipass list --snapshots');
+                
+                const lines = result.split('\n');
+                // Fjern header-linjen
+                lines.shift();
+                
+                // Filter snapshots for den valgte instansen
+                const snapshots = lines
+                    .filter(line => line.trim())
+                    .filter(line => line.startsWith(selectedInstance))
+                    .map(line => {
+                        const parts = line.trim().split(/\s+/);
+                        return parts[1]; // Snapshot navnet er andre kolonne
+                    });
+
+                if (snapshots.length === 0) {
+                    container.innerHTML = `<div class="text-secondary" style="padding: 0.5rem;">Ingen snapshots funnet for ${selectedInstance}</div>`;
+                    return;
+                }
+
+                let html = '';
+                snapshots.forEach(name => {
+                    html += `
+                        <div class="snapshot-item">
+                            <div class="snapshot-info">
+                                <div class="snapshot-name">${name}</div>
+                            </div>
+                            <div class="snapshot-actions">
+                                <button onclick="restoreSnapshot('${selectedInstance}', '${name}')" title="Gjenopprett snapshot">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                <button class="delete-btn" onclick="deleteSnapshot('${selectedInstance}', '${name}')" title="Slett snapshot">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Feil ved lasting av snapshots:', error);
+                container.innerHTML = `<div class="text-secondary" style="padding: 0.5rem;">Kunne ikke laste snapshots: ${error.message}</div>`;
+            }
+        }
+
+        function formatSnapshotDate(snapshotName) {
+            // Forventet format: snapshot_2025-01-30_07-01-58
+            const match = snapshotName.match(/snapshot_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})/);
+            if (match) {
+                const [_, date, time] = match;
+                return `${date} ${time.replace(/-/g, ':')}`;
+            }
+            return snapshotName;
+        }
+
+        async function createSnapshot() {
+            const selectedInstance = document.getElementById('selectedInstance').value;
+            const now = new Date();
+            const dagensDato = now.toLocaleDateString('no-NO').replace(/\./g, '-');
+            const timestamp = now.toISOString().split('T')[0];
+            const name = `snapshot-${dagensDato}`;
+
+            showLoading('Oppretter snapshot...');
+
+            try {
+                await runCommand(`multipass stop ${selectedInstance}`);
+                await runCommand(`multipass snapshot --name ${name} ${selectedInstance}`);
+                await runCommand(`multipass start ${selectedInstance}`);
+                showToast('Snapshot opprettet', 'success');
+                await updateSnapshotList();
+                closeSnapshotDialog();
+            } catch (error) {
+                showToast(`Kunne ikke opprette snapshot: ${error.message}`, 'error');
+                // Prøv å starte instansen igjen hvis den ble stoppet
+                try {
+                    await runCommand(`multipass start ${selectedInstance}`);
+                } catch (e) {
+                    console.error('Kunne ikke starte instansen igjen:', e);
+                }
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function deleteSnapshot(instance, snapshot) {
+            if (!confirm(`Er du sikker på at du vil slette snapshot "${snapshot}" fra instansen "${instance}"?`)) {
+                return;
+            }
+
+            showLoading('Sletter snapshot...');
+
+            try {
+                await runCommand(`multipass delete --purge ${instance}.${snapshot}`);
+                showToast('Snapshot slettet', 'success');
+                await updateSnapshotList();
+            } catch (error) {
+                showToast(`Kunne ikke slette snapshot: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function restoreSnapshot(instance, snapshot) {
+            if (!confirm(`Er du sikker på at du vil gjenopprette snapshot "${snapshot}" på instansen "${instance}"? Dette vil overskrive nåværende tilstand.`)) {
+                return;
+            }
+
+            showLoading('Gjenoppretter snapshot...');
+
+            try {
+                await runCommand(`multipass stop ${instance}`);
+                await runCommand(`multipass snapshot restore ${instance} ${snapshot}`);
+                await runCommand(`multipass start ${instance}`);
+                showToast('Snapshot gjenopprettet', 'success');
+                await fetchInstances();
+            } catch (error) {
+                showToast(`Kunne ikke gjenopprette snapshot: ${error.message}`, 'error');
+                // Prøv å starte instansen igjen hvis den ble stoppet
+                try {
+                    await runCommand(`multipass start ${instance}`);
+                } catch (e) {
+                    console.error('Kunne ikke starte instansen igjen:', e);
+                }
             } finally {
                 hideLoading();
             }
