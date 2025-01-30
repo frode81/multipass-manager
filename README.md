@@ -2,6 +2,9 @@
 
 En webbasert administrasjonsgrensesnitt for Ubuntu Multipass.
 
+![Multipass Manager Dashboard](screenshots/dashboard.png)
+![Opprett Ny Instans](screenshots/new-instance.png)
+
 ## Systemkrav
 
 - Ubuntu Server 20.04 LTS eller nyere
