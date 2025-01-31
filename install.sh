@@ -113,6 +113,9 @@ async function createConfig() {
             expiresIn: '24h'
         }
     };
+    if (fs.existsSync('config.json')) {
+        fs.unlinkSync('config.json');
+    }
     fs.writeFileSync('config.json', JSON.stringify(config, null, 4));
 }
 createConfig();
@@ -124,9 +127,9 @@ apt upgrade -y
 
 print_status "Installerer nødvendige pakker..."
 if [ "$USE_SSL" = true ]; then
-    apt install -y nodejs npm nginx certbot python3-certbot-nginx build-essential python3 make g++
+    apt install -y nodejs npm nginx certbot python3-certbot-nginx build-essential python3 make g++ net-tools
 else
-    apt install -y nodejs npm nginx build-essential python3 make g++
+    apt install -y nodejs npm nginx build-essential python3 make g++ net-tools
 fi
 
 print_status "Oppretter applikasjonsmappe..."
@@ -135,14 +138,77 @@ cp -r ./* /opt/multipass-manager/
 
 print_status "Installerer Node.js avhengigheter..."
 cd /opt/multipass-manager
-npm install
-# Rekompiler node-pty
-sudo apt install -y python3 make g++ build-essential
+
+# Fjern node_modules hvis den eksisterer
+rm -rf node_modules
+
+# Installer node-gyp globalt først
+npm install -g node-gyp
+
+# Installer build-essential og python hvis de ikke allerede er installert
+apt install -y build-essential python3
+
+# Sett python path
+which python3 > /dev/null 2>&1 && {
+    print_status "Setter python path..."
+    npm config set python $(which python3)
+}
+
+# Installer dependencies
+npm install --verbose || {
+    print_error "npm install feilet"
+    echo "npm feillogg:"
+    cat npm-debug.log
+    exit 1
+}
+
+# Spesiell håndtering av node-pty
+print_status "Rekompilerer node-pty..."
 cd node_modules/node-pty
-sudo npm install
-sudo node-gyp rebuild
+rm -rf build
+npm install --build-from-source || {
+    print_error "Kompilering av node-pty feilet"
+    exit 1
+}
+
+# Kjør node-gyp clean først
+node-gyp clean || {
+    print_error "node-gyp clean feilet"
+    exit 1
+}
+
+# Kjør configure og build
+node-gyp configure || {
+    print_error "node-gyp configure feilet"
+    exit 1
+}
+
+node-gyp rebuild || {
+    print_error "node-gyp rebuild feilet"
+    exit 1
+}
+
 cd ../..
 
+# Verifiser at pty.node eksisterer og er gyldig
+if [ ! -f "node_modules/node-pty/build/Release/pty.node" ]; then
+    print_error "pty.node ble ikke bygget"
+    exit 1
+fi
+
+# Verifiser at server.js eksisterer
+if [ ! -f "server.js" ]; then
+    print_error "server.js mangler i /opt/multipass-manager/"
+    echo "Innhold i /opt/multipass-manager/:"
+    ls -la
+    exit 1
+fi
+
+# Sjekk Node.js versjon
+print_status "Node.js versjon:"
+node --version
+print_status "NPM versjon:"
+npm --version
 
 print_status "Konfigurerer systemd service..."
 cat > /etc/systemd/system/multipass-manager.service << EOL
@@ -159,8 +225,10 @@ Restart=always
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=USE_SSL=${USE_SSL}
-StandardOutput=append:/var/log/multipass-manager.log
-StandardError=append:/var/log/multipass-manager.error.log
+StandardOutput=journal
+StandardError=journal
+# Legg til mer detaljert logging
+Environment=DEBUG=*
 
 [Install]
 WantedBy=multi-user.target
@@ -232,7 +300,40 @@ ufw --force enable
 print_status "Starter tjenesten..."
 systemctl daemon-reload
 systemctl enable multipass-manager
-systemctl start multipass-manager
+if ! systemctl start multipass-manager; then
+    print_error "Kunne ikke starte multipass-manager"
+    echo "Systemd status:"
+    systemctl status multipass-manager
+    echo "Journalctl output:"
+    journalctl -u multipass-manager -n 50 --no-pager
+    exit 1
+fi
+
+# Vent litt og sjekk om tjenesten fortsatt kjører
+sleep 5
+if ! systemctl is-active --quiet multipass-manager; then
+    print_error "multipass-manager startet men stoppet etter få sekunder"
+    echo "Siste loggmeldinger:"
+    journalctl -u multipass-manager -n 50 --no-pager
+    exit 1
+fi
+
+# Legg til feilsøkingsinformasjon
+print_status "Sjekker status på tjenester..."
+echo "Nginx status:"
+systemctl status nginx
+echo "Multipass-manager status:"
+systemctl status multipass-manager
+echo "Sjekker om port 3000 er i bruk:"
+netstat -tulpn | grep 3000
+echo "Siste linjer fra journalctl for multipass-manager:"
+journalctl -u multipass-manager -n 50 --no-pager
+
+# Sjekk at Node.js-applikasjonen kjører
+if ! netstat -tulpn | grep :3000 > /dev/null; then
+    print_error "Node.js-applikasjonen ser ikke ut til å kjøre på port 3000!"
+    print_warning "Sjekk feilmeldinger med: journalctl -u multipass-manager -n 50"
+fi
 
 # Modifiser SSL-delen
 if [ "$USE_SSL" = true ]; then
