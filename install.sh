@@ -142,20 +142,16 @@ cd /opt/multipass-manager
 # Fjern node_modules hvis den eksisterer
 rm -rf node_modules
 
-# Installer node-gyp globalt først
+# Installer build dependencies
+apt install -y python3 make g++ pkg-config
 npm install -g node-gyp
 
-# Installer build-essential og python hvis de ikke allerede er installert
-apt install -y build-essential python3
+# Sett opp miljøvariabler for node-gyp
+export PYTHON=/usr/bin/python3
+export NODE_GYP_FORCE_PYTHON=/usr/bin/python3
 
-# Sett python path
-which python3 > /dev/null 2>&1 && {
-    print_status "Setter python path..."
-    npm config set python $(which python3)
-}
-
-# Installer dependencies
-npm install --verbose || {
+# Installer alle dependencies unntatt node-pty først
+npm install --verbose --ignore-scripts || {
     print_error "npm install feilet"
     echo "npm feillogg:"
     cat npm-debug.log
@@ -163,38 +159,47 @@ npm install --verbose || {
 }
 
 # Spesiell håndtering av node-pty
-print_status "Rekompilerer node-pty..."
+print_status "Installerer og bygger node-pty..."
+npm install node-pty --build-from-source --verbose || {
+    print_error "Installasjon av node-pty feilet"
+    exit 1
+}
+
+# Gå inn i node-pty mappen og bygg på nytt
 cd node_modules/node-pty
+
+# Fjern eksisterende build
 rm -rf build
-npm install --build-from-source || {
-    print_error "Kompilering av node-pty feilet"
+
+# Kjør full rebuild
+node-gyp clean configure build --verbose --debug || {
+    print_error "node-gyp build feilet"
     exit 1
 }
 
-# Kjør node-gyp clean først
-node-gyp clean || {
-    print_error "node-gyp clean feilet"
+# Verifiser at både Debug og Release versjoner eksisterer
+if [ ! -f "build/Debug/pty.node" ] && [ ! -f "build/Release/pty.node" ]; then
+    print_error "Kunne ikke finne bygget pty.node modul"
+    echo "Innhold i build/Debug:"
+    ls -la build/Debug || echo "Debug mappe finnes ikke"
+    echo "Innhold i build/Release:"
+    ls -la build/Release || echo "Release mappe finnes ikke"
     exit 1
-}
+fi
 
-# Kjør configure og build
-node-gyp configure || {
-    print_error "node-gyp configure feilet"
-    exit 1
-}
-
-node-gyp rebuild || {
-    print_error "node-gyp rebuild feilet"
-    exit 1
-}
+# Kopier Debug versjon hvis Release mangler
+if [ ! -f "build/Release/pty.node" ] && [ -f "build/Debug/pty.node" ]; then
+    mkdir -p build/Release
+    cp build/Debug/pty.node build/Release/
+fi
 
 cd ../..
 
-# Verifiser at pty.node eksisterer og er gyldig
-if [ ! -f "node_modules/node-pty/build/Release/pty.node" ]; then
-    print_error "pty.node ble ikke bygget"
+# Verifiser at modulen kan lastes
+node -e "require('node-pty')" || {
+    print_error "Kunne ikke laste node-pty modul etter bygging"
     exit 1
-fi
+}
 
 # Verifiser at server.js eksisterer
 if [ ! -f "server.js" ]; then
@@ -203,6 +208,11 @@ if [ ! -f "server.js" ]; then
     ls -la
     exit 1
 fi
+
+# rebuild node-pty
+print_status "Running rebuild:"
+cd /opt/multipass-manager
+npm rebuild
 
 # Sjekk Node.js versjon
 print_status "Node.js versjon:"
