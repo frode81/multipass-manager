@@ -124,9 +124,9 @@ apt upgrade -y
 
 print_status "Installerer nødvendige pakker..."
 if [ "$USE_SSL" = true ]; then
-    apt install -y nodejs npm nginx certbot python3-certbot-nginx
+    apt install -y nodejs npm nginx certbot python3-certbot-nginx build-essential python3 make g++
 else
-    apt install -y nodejs npm nginx
+    apt install -y nodejs npm nginx build-essential python3 make g++
 fi
 
 print_status "Oppretter applikasjonsmappe..."
@@ -136,6 +136,10 @@ cp -r ./* /opt/multipass-manager/
 print_status "Installerer Node.js avhengigheter..."
 cd /opt/multipass-manager
 npm install
+# Rekompiler node-pty
+cd node_modules/node-pty
+npm run install
+cd ../..
 
 print_status "Konfigurerer systemd service..."
 cat > /etc/systemd/system/multipass-manager.service << EOL
@@ -159,9 +163,19 @@ EOL
 print_status "Konfigurerer Nginx..."
 if [ "$USE_SSL" = true ]; then
     cat > /etc/nginx/sites-available/multipass-manager.conf << EOL
+# Redirect all HTTP traffic to HTTPS
 server {
     listen 80;
     server_name ${DOMAIN_NAME};
+    return 301 https://\$server_name\$request_uri;
+}
+
+# Main HTTPS server block
+server {
+    listen 443 ssl;
+    server_name ${DOMAIN_NAME};
+
+    # SSL-konfigurasjon vil bli lagt til av Certbot
 
     location / {
         proxy_pass http://localhost:3000;
@@ -172,16 +186,18 @@ server {
         proxy_cache_bypass \$http_upgrade;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 EOL
 else
+    # For ikke-SSL oppsett (lokal testing/utvikling)
     cat > /etc/nginx/sites-available/multipass-manager.conf << EOL
 server {
     listen 80;
     server_name ${DOMAIN_NAME};
     
-    # Sikkerhetstiltak for IP-basert tilgang
+    # Sikkerhetstiltak
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-XSS-Protection "1; mode=block";
     add_header X-Content-Type-Options "nosniff";
@@ -195,6 +211,7 @@ server {
         proxy_cache_bypass \$http_upgrade;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 EOL
