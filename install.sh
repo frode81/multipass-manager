@@ -137,9 +137,12 @@ print_status "Installerer Node.js avhengigheter..."
 cd /opt/multipass-manager
 npm install
 # Rekompiler node-pty
+sudo apt install -y python3 make g++ build-essential
 cd node_modules/node-pty
-npm run install
+sudo npm install
+sudo node-gyp rebuild
 cd ../..
+
 
 print_status "Konfigurerer systemd service..."
 cat > /etc/systemd/system/multipass-manager.service << EOL
@@ -155,6 +158,9 @@ ExecStart=/usr/bin/node server.js
 Restart=always
 Environment=NODE_ENV=production
 Environment=PORT=3000
+Environment=USE_SSL=${USE_SSL}
+StandardOutput=append:/var/log/multipass-manager.log
+StandardError=append:/var/log/multipass-manager.error.log
 
 [Install]
 WantedBy=multi-user.target
