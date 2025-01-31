@@ -162,21 +162,12 @@ EOL
 
 print_status "Konfigurerer Nginx..."
 if [ "$USE_SSL" = true ]; then
+    # Først setter vi opp en midlertidig HTTP-konfigurasjon
     cat > /etc/nginx/sites-available/multipass-manager.conf << EOL
-# Redirect all HTTP traffic to HTTPS
 server {
     listen 80;
     server_name ${DOMAIN_NAME};
-    return 301 https://\$server_name\$request_uri;
-}
-
-# Main HTTPS server block
-server {
-    listen 443 ssl;
-    server_name ${DOMAIN_NAME};
-
-    # SSL-konfigurasjon vil bli lagt til av Certbot
-
+    
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -219,8 +210,11 @@ fi
 
 print_status "Aktiverer Nginx konfigurasjon..."
 ln -sf /etc/nginx/sites-available/multipass-manager.conf /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default  # Fjern standard konfigurasjon
 nginx -t
 systemctl restart nginx
+
+
 
 print_status "Konfigurerer brannmur..."
 ufw allow 80/tcp
