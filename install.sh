@@ -6,7 +6,23 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Loggfunksjon med tidsstempel
+# Konstanter
+NODE_VERSION="18.x"
+APP_DIR="/opt/multipass-manager"
+REQUIRED_PACKAGES=(
+    build-essential
+    python3
+    make
+    g++
+    pkg-config
+    curl
+    nginx
+    net-tools
+    ufw
+    git
+)
+
+# Loggfunksjoner
 log() {
     echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] ${1}"
 }
@@ -32,13 +48,11 @@ command_exists() {
 check_requirements() {
     info "Sjekker systemkrav..."
     
-    # Sjekk om vi kjører som root
     if [ "$EUID" -ne 0 ]; then 
         error "Dette skriptet må kjøres som root (sudo)"
         exit 1
     fi
 
-    # Sjekk operativsystem
     if [ ! -f /etc/os-release ]; then
         error "Kunne ikke identifisere operativsystemet"
         exit 1
@@ -61,12 +75,36 @@ check_requirements() {
         warn "Systemet har mindre enn 2GB RAM. Dette kan påvirke ytelsen."
     fi
 
-    # Sjekk diskplass
     FREE_SPACE=$(df -m /opt | awk 'NR==2 {print $4}')
     if [ "$FREE_SPACE" -lt 5120 ]; then
         error "Mindre enn 5GB ledig diskplass. Minimum 5GB kreves."
         exit 1
     fi
+}
+
+# Funksjon for å installere Node.js
+install_nodejs() {
+    info "Setter opp Node.js repository..."
+    
+    # Fjern eksisterende Node.js installasjoner
+    apt-get remove -y nodejs npm || true
+    rm -rf /usr/local/bin/npm /usr/local/share/man/man1/node* /usr/local/lib/dtrace/node.d ~/.npm
+    
+    # Installer Node.js fra nodesource
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION} | bash - || {
+        error "Kunne ikke sette opp Node.js repository"
+        exit 1
+    }
+    
+    apt-get install -y nodejs || {
+        error "Kunne ikke installere Node.js"
+        exit 1
+    }
+    
+    # Verifiser installasjonen
+    node_version=$(node --version)
+    npm_version=$(npm --version)
+    info "Node.js $node_version og npm $npm_version er installert"
 }
 
 # Funksjon for å installere nødvendige pakker
@@ -78,18 +116,7 @@ install_dependencies() {
     }
 
     info "Installerer nødvendige pakker..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        curl \
-        nodejs \
-        npm \
-        nginx \
-        python3 \
-        make \
-        g++ \
-        pkg-config \
-        build-essential \
-        net-tools \
-        ufw || {
+    apt-get install -y "${REQUIRED_PACKAGES[@]}" || {
         error "Kunne ikke installere nødvendige pakker"
         exit 1
     }
@@ -110,7 +137,6 @@ install_multipass() {
         exit 1
     }
 
-    # Verifiser Multipass-installasjonen
     if ! multipass version; then
         error "Multipass er installert men fungerer ikke korrekt"
         exit 1
@@ -121,27 +147,20 @@ install_multipass() {
 setup_application() {
     info "Setter opp applikasjonen..."
     
-    # Opprett applikasjonsmappe
-    mkdir -p /opt/multipass-manager
-    cp -r ./* /opt/multipass-manager/ || {
+    # Opprett og gå til applikasjonsmappe
+    mkdir -p "$APP_DIR"
+    cp -r ./* "$APP_DIR/" || {
         error "Kunne ikke kopiere applikasjonsfiler"
         exit 1
     }
 
-    cd /opt/multipass-manager || {
+    cd "$APP_DIR" || {
         error "Kunne ikke navigere til applikasjonsmappen"
         exit 1
     }
 
-    # Fjern node_modules hvis den eksisterer
-    rm -rf node_modules
-
-    # Installer build-essential og python først
-    info "Installerer build dependencies..."
-    apt-get install -y build-essential python3 make g++ || {
-        error "Kunne ikke installere build dependencies"
-        exit 1
-    }
+    # Fjern eksisterende node_modules
+    rm -rf node_modules package-lock.json
 
     # Installer node-gyp globalt
     info "Installerer node-gyp..."
@@ -150,38 +169,44 @@ setup_application() {
         exit 1
     }
 
-    # Sett miljøvariabler for node-gyp
+    # Sett opp miljøvariabler for node-gyp
     export PYTHON=/usr/bin/python3
+    export NODE_GYP_FORCE_PYTHON=/usr/bin/python3
+    export npm_config_node_gyp=/usr/local/lib/node_modules/node-gyp/bin/node-gyp.js
 
-    # Installer Node.js-avhengigheter
-    info "Installerer Node.js-avhengigheter..."
-    npm ci --production || {
-        error "Kunne ikke installere Node.js-avhengigheter"
+    # Installer dependencies
+    info "Installerer prosjektavhengigheter..."
+    npm install --no-package-lock || {
+        error "Kunne ikke installere prosjektavhengigheter"
         exit 1
     }
 
-    # Spesialhåndtering av bcrypt
-    info "Bygger bcrypt på nytt..."
-    npm rebuild bcrypt --build-from-source || {
+    # Bygg bcrypt fra kildekode
+    info "Bygger bcrypt..."
+    npm install bcrypt --build-from-source || {
         error "Kunne ikke bygge bcrypt"
         exit 1
     }
 
-    # Spesialhåndtering av node-pty
+    # Installer og bygg node-pty separat
     info "Bygger node-pty..."
-    npm npm install node-pty --update-binary || {
+    npm install node-pty --build-from-source || {
         error "Kunne ikke bygge node-pty"
         exit 1
     }
 
-        # Spesialhåndtering av node-pty
-    info "NPM rebuild."
-    npm npm rebuild || {
-        error "Feil ved NPM rebuild."
+    # Kjør en full rebuild for å sikre at alt er bygget riktig
+    info "Kjører full rebuild..."
+    npm rebuild || {
+        error "Kunne ikke rebuilde alle moduler"
         exit 1
     }
 
-    
+    # Verifiser installasjonen
+    if ! node -e "require('bcrypt'); require('node-pty');" 2>/dev/null; then
+        error "Verifisering av moduler feilet"
+        exit 1
+    fi
 }
 
 # Funksjon for å sette opp systemd-tjeneste
@@ -196,14 +221,14 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/multipass-manager
+WorkingDirectory=${APP_DIR}
 ExecStart=/usr/bin/node server.js
 Restart=always
 Environment=NODE_ENV=production
 Environment=PORT=3000
+Environment=DEBUG=*
 StandardOutput=journal
 StandardError=journal
-Environment=DEBUG=*
 
 [Install]
 WantedBy=multi-user.target
@@ -258,7 +283,6 @@ EOL
 # Funksjon for å sette opp brannmur
 setup_firewall() {
     info "Konfigurerer brannmur..."
-    
     ufw allow 80/tcp
     ufw allow 22/tcp  # SSH
     ufw --force enable
@@ -270,6 +294,7 @@ main() {
     
     check_requirements
     install_dependencies
+    install_nodejs      # Ny dedikert funksjon for Node.js
     install_multipass
     setup_application
     setup_systemd
@@ -278,7 +303,7 @@ main() {
     
     info "Installasjon fullført!"
     info "Du kan nå besøke http://localhost eller server IP-adressen"
-    info "Sjekk /opt/multipass-manager/config.json for påloggingsinformasjon"
+    info "Sjekk ${APP_DIR}/config.json for påloggingsinformasjon"
 }
 
 # Start installasjonen
