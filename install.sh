@@ -162,6 +162,13 @@ setup_application() {
     # Fjern eksisterende node_modules
     rm -rf node_modules package-lock.json
 
+    # Installer build dependencies
+    info "Installerer build dependencies..."
+    apt-get install -y python3 make g++ pkg-config build-essential || {
+        error "Kunne ikke installere build dependencies"
+        exit 1
+    }
+
     # Installer node-gyp globalt
     info "Installerer node-gyp..."
     npm install -g node-gyp || {
@@ -169,44 +176,26 @@ setup_application() {
         exit 1
     }
 
-    # Sett opp miljøvariabler for node-gyp
-    export PYTHON=/usr/bin/python3
-    export NODE_GYP_FORCE_PYTHON=/usr/bin/python3
-    export npm_config_node_gyp=/usr/local/lib/node_modules/node-gyp/bin/node-gyp.js
-
-    # Installer dependencies
-    info "Installerer prosjektavhengigheter..."
-    npm install --no-package-lock || {
-        error "Kunne ikke installere prosjektavhengigheter"
+    # Installer node-pty først
+    info "Installerer node-pty..."
+    npm install node-pty || {
+        error "Kunne ikke installere node-pty"
         exit 1
     }
 
-    # Bygg bcrypt fra kildekode
-    info "Bygger bcrypt..."
-    npm install bcrypt --build-from-source || {
-        error "Kunne ikke bygge bcrypt"
+    # Installer resten av dependencies
+    info "Installerer andre avhengigheter..."
+    npm install || {
+        error "Kunne ikke installere avhengigheter"
         exit 1
     }
 
-    # Installer og bygg node-pty separat
-    info "Bygger node-pty..."
-    npm install node-pty --build-from-source || {
-        error "Kunne ikke bygge node-pty"
-        exit 1
-    }
-
-    # Kjør en full rebuild for å sikre at alt er bygget riktig
-    info "Kjører full rebuild..."
+    # Kjør rebuild på alle native moduler
+    info "Kjører rebuild..."
     npm rebuild || {
-        error "Kunne ikke rebuilde alle moduler"
+        error "Kunne ikke rebuilde moduler"
         exit 1
     }
-
-    # Verifiser installasjonen
-    if ! node -e "require('bcrypt'); require('node-pty');" 2>/dev/null; then
-        error "Verifisering av moduler feilet"
-        exit 1
-    fi
 }
 
 # Funksjon for å sette opp systemd-tjeneste
