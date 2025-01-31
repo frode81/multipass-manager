@@ -176,7 +176,18 @@ setup_application() {
         exit 1
     }
 
-    # Installer node-pty først
+    # Installer bcrypt først og rebuild
+    info "Installerer og bygger bcrypt..."
+    npm install bcrypt || {
+        error "Kunne ikke installere bcrypt"
+        exit 1
+    }
+    npm rebuild bcrypt --build-from-source || {
+        error "Kunne ikke bygge bcrypt fra kildekode"
+        exit 1
+    }
+
+    # Installer node-pty
     info "Installerer node-pty..."
     npm install node-pty || {
         error "Kunne ikke installere node-pty"
