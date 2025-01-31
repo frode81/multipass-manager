@@ -177,37 +177,6 @@ node-gyp clean configure build --verbose --debug || {
     exit 1
 }
 
-# Verifiser at både Debug og Release versjoner eksisterer
-if [ ! -f "build/Debug/pty.node" ] && [ ! -f "build/Release/pty.node" ]; then
-    print_error "Kunne ikke finne bygget pty.node modul"
-    echo "Innhold i build/Debug:"
-    ls -la build/Debug || echo "Debug mappe finnes ikke"
-    echo "Innhold i build/Release:"
-    ls -la build/Release || echo "Release mappe finnes ikke"
-    exit 1
-fi
-
-# Kopier Debug versjon hvis Release mangler
-if [ ! -f "build/Release/pty.node" ] && [ -f "build/Debug/pty.node" ]; then
-    mkdir -p build/Release
-    cp build/Debug/pty.node build/Release/
-fi
-
-cd ../..
-
-# Verifiser at modulen kan lastes
-node -e "require('node-pty')" || {
-    print_error "Kunne ikke laste node-pty modul etter bygging"
-    exit 1
-}
-
-# Verifiser at server.js eksisterer
-if [ ! -f "server.js" ]; then
-    print_error "server.js mangler i /opt/multipass-manager/"
-    echo "Innhold i /opt/multipass-manager/:"
-    ls -la
-    exit 1
-fi
 
 # rebuild node-pty
 print_status "Running rebuild:"
