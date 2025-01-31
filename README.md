@@ -15,7 +15,7 @@ En webbasert administrasjonsgrensesnitt for Ubuntu Multipass.
 
 1. Last ned koden:
 ```bash
-git clone https://github.com/yourusername/multipass-manager.git
+git clone https://github.com/frode81/multipass-manager.git
 cd multipass-manager
 ```
 
