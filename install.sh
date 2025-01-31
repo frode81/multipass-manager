@@ -133,18 +133,55 @@ setup_application() {
         exit 1
     }
 
+    # Fjern node_modules hvis den eksisterer
+    rm -rf node_modules
+
+    # Installer build-essential og python først
+    info "Installerer build dependencies..."
+    apt-get install -y build-essential python3 make g++ || {
+        error "Kunne ikke installere build dependencies"
+        exit 1
+    }
+
+    # Installer node-gyp globalt
+    info "Installerer node-gyp..."
+    npm install -g node-gyp || {
+        error "Kunne ikke installere node-gyp"
+        exit 1
+    }
+
+    # Sett miljøvariabler for node-gyp
+    export PYTHON=/usr/bin/python3
+
     # Installer Node.js-avhengigheter
+    info "Installerer Node.js-avhengigheter..."
     npm ci --production || {
         error "Kunne ikke installere Node.js-avhengigheter"
         exit 1
     }
 
+    # Spesialhåndtering av bcrypt
+    info "Bygger bcrypt på nytt..."
+    npm rebuild bcrypt --build-from-source || {
+        error "Kunne ikke bygge bcrypt"
+        exit 1
+    }
+
     # Spesialhåndtering av node-pty
     info "Bygger node-pty..."
-    npm rebuild node-pty --update-binary || {
+    npm npm install node-pty --update-binary || {
         error "Kunne ikke bygge node-pty"
         exit 1
     }
+
+        # Spesialhåndtering av node-pty
+    info "NPM rebuild."
+    npm npm rebuild || {
+        error "Feil ved NPM rebuild."
+        exit 1
+    }
+
+    
 }
 
 # Funksjon for å sette opp systemd-tjeneste
