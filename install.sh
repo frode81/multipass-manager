@@ -114,7 +114,7 @@ install_multipass() {
     if ! multipass version; then
         error "Multipass er installert men fungerer ikke korrekt"
         exit 1
-    }
+    fi
 }
 
 # Funksjon for å sette opp applikasjonen
